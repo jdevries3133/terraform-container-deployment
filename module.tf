@@ -75,23 +75,37 @@ resource "kubernetes_ingress_v1" "app" {
   metadata {
     name      = "${var.app_name}-ingress"
     namespace = kubernetes_namespace.app.metadata.0.name
+    annotations = {
+      "cert-manager.io/cluster-issuer"              = "letsencrypt-prod"
+      "acme.cert-manager.io/http01-edit-in-place"   = "true"
+      "cert-manager.io/issue-temporary-certificate" = "true"
+    }
   }
 
   spec {
-    ingress_class_name = "public"
-
-    default_backend {
-      service {
-        name = kubernetes_service.app.metadata.0.name
-        port {
-          number = 8000
-        }
-
-      }
-    }
+    ingress_class_name = "nginx"
 
     tls {
-      hosts = [var.domain]
+      hosts       = [var.domain]
+      secret_name = "${var.app_name}-tls-certificate"
+    }
+
+    rule {
+      host = var.domain
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = kubernetes_service.app.metadata.0.name
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
